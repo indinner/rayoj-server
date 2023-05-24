@@ -9,7 +9,6 @@ import uuid
 from flask_cors import cross_origin
 
 app = Flask(__name__)
-# app.config['ENV'] = 'development'
 # 启动Ray.
 ray.init('ray://43.139.117.81:10001')
 
@@ -55,25 +54,33 @@ my_actor = MyActor.remote()
 @app.route('/oj_run_v2', methods=['POST'])
 @cross_origin(origins="*")
 def oj_run_v2():  # put application's code here
-    if not ray.is_initialized():
-        # 如果尚未连接集群，则初始化Ray
-        ray.init('ray://43.139.117.81:10001')
     data = json.loads(request.data)
     code = data['code']  # 执行代码
     input_case = data['input_case']  # 获取传进来的测试用例
     output_case = data['output_case']  # 获取传进来的测试用例
     res_obj_id = []
-    temp_input = fund(input_case, 10)
-    temp_output = fund(output_case, 10)
+
+    # 判断测试用例数量，小于等于10则使用每节点每次判一个测试用例的逻辑
+    # 大于10则每节点分配多个测试用例判题
+    case_number = len(input_case)
+    fund_number = 1
+    if case_number <= 10:
+        fund_number = 3
+    else:
+        fund_number = 5
+
+    # 切割测试用例
+    temp_input = fund(input_case, fund_number)
+    temp_output = fund(output_case, fund_number)
+
     for i in range(0, len(temp_input)):
         data['input_case'] = temp_input[i]
         data['output_case'] = temp_output[i]
         kid = ray_oj.remote(data)
         res_obj_id.append(kid)
-
     res = ray.get(res_obj_id)
-
-    return ''.join(res)
+    # print(type(res))
+    return ''.join(json.dumps(res, ensure_ascii=False))
 
 
 # v1接口，所有测试用例放在一个沙盒进行测试
@@ -94,11 +101,14 @@ def fund(list_emp, n):
     return resules
 
 
-@ray.remote(num_cpus=0.5, max_retries=-1)
+@ray.remote
 def ray_oj(data):
     code = data['code']  # 执行代码
     input_case = data['input_case']  # 输入样例,数组
     output_case = data['output_case']  # 输出样例,数组
+    print("input_case", input_case)
+    print("output_case", output_case)
+
     time = data['time']  # 时间限制
     memory = data['memory']  # 空间限制
     language = data['language']  # 语言
@@ -116,10 +126,11 @@ def ray_oj(data):
                 memory) + " --testDir /testcase/" + random_id + " --mode entire --type " + result_type + " --delete false --codeResultDir " + "/testcase/" + random_id,
     res = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                            stdout=subprocess.PIPE, text=True)
+    # print(cmd)
     (out, err) = res.communicate()
     pass
     return out
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host='0.0.0.0')

@@ -1,11 +1,9 @@
-from time import sleep
-
-from flask import Flask, jsonify, request
-import subprocess
 import json
-import ray
+import subprocess
 import uuid
 
+import ray
+from flask import Flask, request
 from flask_cors import cross_origin
 
 app = Flask(__name__)

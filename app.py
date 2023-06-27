@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import uuid
 
@@ -13,6 +14,7 @@ ray.init('ray://119.45.71.218:10001')
 @app.route('/oj_run_v2', methods=['POST'])
 @cross_origin(origins="*")
 def oj_run_v2():  # put application's code here
+
     data = json.loads(request.data)
     code = data['code']  # 执行代码
     input_case = data['input_case']  # 获取传进来的测试用例
@@ -62,6 +64,14 @@ def fund(list_emp, n):
 
 @ray.remote
 def ray_oj(data):
+    def write_to_file(content, file_path):
+        try:
+            with open(file_path, 'w') as file:
+                file.write(content)
+            print("内容已成功写入文件。")
+        except IOError:
+            print("无法写入文件：{}".format(file_path))
+
     code = data['code']  # 执行代码
     input_case = data['input_case']  # 输入样例,数组
     output_case = data['output_case']  # 输出样例,数组
@@ -82,16 +92,20 @@ def ray_oj(data):
     elif language == 'c++':
         filename = 'Main.cpp'
         filename_='Main'
-    subprocess.call('echo "' + code + '" > /testcase/' + random_id + '/' + filename, shell=True)  # 创建待测试文件
+    #subprocess.call('echo "' + code + '" > /testcase/' + random_id + '/' + filename, shell=True)  # 创建待测试文件
+    write_to_file(code,'/testcase/' + random_id + '/' + filename)
     for i in range(0, len(input_case)):  # 创建测试用例文件
-        subprocess.call('echo "' + input_case[i] + '" > /testcase/' + random_id + '/' + str(i) + '.in', shell=True)
-        subprocess.call('echo "' + output_case[i] + '" > /testcase/' + random_id + '/' + str(i) + '.out', shell=True)
+        #subprocess.call('echo "' + input_case[i] + '" > /testcase/' + random_id + '/' + str(i) + '.in', shell=True)
+        #subprocess.call('echo "' + output_case[i] + '" > /testcase/' + random_id + '/' + str(i) + '.out', shell=True)
+        write_to_file(input_case[i], '/testcase/' + random_id + '/' + str(i) + '.in')
+        write_to_file(output_case[i], '/testcase/' + random_id + '/' + str(i) + '.out')
+
         language_type = ''
         if language == 'python':
             language_type = 'python3'
         elif language == 'c++':
             language_type = 'cpp'
-        cmd = "python /home/acm-judge-module/judge/judge.py --language " + language_type + " --languageConfig /home/acm-judge-module/judge/language/ --file /testcase/" + random_id + "/" + filename_ + " --time " + str(
+        cmd = "python /home/acm-judge-module/judge/judge.py --language " + language_type + " --languageConfig /home/acm-judge-module/judge/language/ --file /testcase/"  + "/" + filename_ + " --time " + str(
             time) + " --memory " + str(
             memory) + " --testDir /testcase/" + random_id + " --mode entire --type " + result_type + " --delete false --codeResultDir " + "/testcase/" + random_id
     res = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,

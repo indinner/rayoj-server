@@ -67,7 +67,7 @@ def ray_oj(data):
     def write_to_file(content, file_path):
         try:
             with open(file_path, 'w') as file:
-                file.write(content)
+                file.write(content+'\n')
             print("内容已成功写入文件。")
         except IOError:
             print("无法写入文件：{}".format(file_path))
@@ -105,7 +105,7 @@ def ray_oj(data):
             language_type = 'python3'
         elif language == 'c++':
             language_type = 'cpp'
-        cmd = "python /home/acm-judge-module/judge/judge.py --language " + language_type + " --languageConfig /home/acm-judge-module/judge/language/ --file /testcase/"  + "/" + filename_ + " --time " + str(
+        cmd = "python /home/acm-judge-module/judge/judge.py --language " + language_type + " --languageConfig /home/acm-judge-module/judge/language/ --file /testcase/" + random_id+ "/" + filename_ + " --time " + str(
             time) + " --memory " + str(
             memory) + " --testDir /testcase/" + random_id + " --mode entire --type " + result_type + " --delete false --codeResultDir " + "/testcase/" + random_id
     res = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,

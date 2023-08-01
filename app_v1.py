@@ -10,7 +10,7 @@ from flask_cors import cross_origin
 
 app = Flask(__name__)
 # 启动Ray.
-ray.init('ray://119.45.71.218:10001')
+ray.init('ray://119.45.173.116:10001')
 
 
 # ray.init(address='auto', _node_ip_address='119.45.71.218')

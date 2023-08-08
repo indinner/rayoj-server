@@ -98,6 +98,9 @@ def ray_oj(data):
     elif language == 'c++':
         filename = 'Main.cpp'
         filename_='Main'
+    elif language == 'cpp':
+        filename = 'Main.cpp'
+        filename_ = 'Main'
     #subprocess.call('echo "' + code + '" > /testcase/' + random_id + '/' + filename, shell=True)  # 创建待测试文件
     write_to_file(code,'/testcase/' + random_id + '/' + filename)
     for i in range(0, len(input_case)):  # 创建测试用例文件

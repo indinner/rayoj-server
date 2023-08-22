@@ -1,28 +1,25 @@
 import json
 import subprocess
 import uuid
-
+import os
 import ray
 from flask import Flask, request
 from flask_cors import cross_origin
 
 app = Flask(__name__)
+
+ray_url = os.environ.get("RAY_URL", "default_value_if_not_set")
+
+print('环境变量中的ray_url为：'+ray_url)
+
 # 启动Ray.
-ray.init('ray://119.45.173.116:10001')
+ray.init(ray_url)
+
 
 @app.route('/oj_run_v2', methods=['POST'])
 @cross_origin(origins="*")
-def oj_run_v2():  # put application's code here
-
-
-    # print("=====")
-    #
-    # print(request.get_data())
-    #
-    # print("=====")
-
+def oj_run_v2():
     data = json.loads(request.data)
-    code = data['code']  # 执行代码
     input_case = data['input_case']  # 获取传进来的测试用例
     output_case = data['output_case']  # 获取传进来的测试用例
     res_obj_id = []
@@ -30,7 +27,6 @@ def oj_run_v2():  # put application's code here
     # 判断测试用例数量，小于等于10则使用每节点每次判一个测试用例的逻辑
     # 大于10则每节点分配多个测试用例判题
     case_number = len(input_case)
-    fund_number = 1
     if case_number <= 10:
         fund_number = 3
     else:
@@ -46,7 +42,6 @@ def oj_run_v2():  # put application's code here
         kid = ray_oj.remote(data)
         res_obj_id.append(kid)
     res = ray.get(res_obj_id)
-    # print(type(res))
     return ''.join(json.dumps(res, ensure_ascii=False))
 
 
@@ -73,7 +68,7 @@ def ray_oj(data):
     def write_to_file(content, file_path):
         try:
             with open(file_path, 'w') as file:
-                file.write(content+'\n')
+                file.write(content + '\n')
             print("内容已成功写入文件。")
         except IOError:
             print("无法写入文件：{}".format(file_path))
@@ -91,21 +86,18 @@ def ray_oj(data):
     random_id = str(uuid.uuid1())
     subprocess.call('mkdir /testcase/' + random_id, shell=True)  # 创建一个测试文件夹
     filename = ''
-    filename_=''
+    filename_ = ''
     if language == 'python':
         filename = 'test.py'
-        filename_='test.py'
+        filename_ = 'test.py'
     elif language == 'c++':
         filename = 'Main.cpp'
-        filename_='Main'
+        filename_ = 'Main'
     elif language == 'cpp':
         filename = 'Main.cpp'
         filename_ = 'Main'
-    #subprocess.call('echo "' + code + '" > /testcase/' + random_id + '/' + filename, shell=True)  # 创建待测试文件
-    write_to_file(code,'/testcase/' + random_id + '/' + filename)
+    write_to_file(code, '/testcase/' + random_id + '/' + filename)
     for i in range(0, len(input_case)):  # 创建测试用例文件
-        #subprocess.call('echo "' + input_case[i] + '" > /testcase/' + random_id + '/' + str(i) + '.in', shell=True)
-        #subprocess.call('echo "' + output_case[i] + '" > /testcase/' + random_id + '/' + str(i) + '.out', shell=True)
         write_to_file(input_case[i], '/testcase/' + random_id + '/' + str(i) + '.in')
         write_to_file(output_case[i], '/testcase/' + random_id + '/' + str(i) + '.out')
 
@@ -116,7 +108,7 @@ def ray_oj(data):
             language_type = 'cpp'
         elif language == 'cpp':
             language_type = 'cpp'
-        cmd = "python /home/acm-judge-module/judge/judge.py --language " + language_type + " --languageConfig /home/acm-judge-module/judge/language/ --file /testcase/" + random_id+ "/" + filename_ + " --time " + str(
+        cmd = "python /home/acm-judge-module/judge/judge.py --language " + language_type + " --languageConfig /home/acm-judge-module/judge/language/ --file /testcase/" + random_id + "/" + filename_ + " --time " + str(
             time) + " --memory " + str(
             memory) + " --testDir /testcase/" + random_id + " --mode entire --type " + result_type + " --delete false --codeResultDir " + "/testcase/" + random_id
     res = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
@@ -129,4 +121,3 @@ def ray_oj(data):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')
-

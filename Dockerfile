@@ -6,6 +6,4 @@ ADD . .
 
 RUN pip install -r requirements.txt
 
-ENV RAY_URL=ray://119.45.173.116:10001
-
 CMD ["python", "./src/main.py"]

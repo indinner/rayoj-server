@@ -1,17 +1,18 @@
 import json
+import os
 import subprocess
 import uuid
-import os
 import ray
 from flask import Flask, request
 from flask_cors import cross_origin
+from compile_run import compile_run_blueprint
 
 app = Flask(__name__)
+app.register_blueprint(compile_run_blueprint)
 
+# 从环境变量获取ray_url
 ray_url = os.environ.get("RAY_URL", "default_value_if_not_set")
-
-print('环境变量中的ray_url为：'+ray_url)
-
+# ray_url = 'ray://10.100.157.253:10001'
 # 启动Ray.
 ray.init(ray_url)
 
@@ -19,6 +20,14 @@ ray.init(ray_url)
 @app.route('/oj_run_v2', methods=['POST'])
 @cross_origin(origins="*")
 def oj_run_v2():
+    # 切割数组
+    def fund(list_emp, n):
+        resule = []
+        for i in range(0, len(list_emp), n):
+            temp = list_emp[i:i + n]
+            resule.append(temp)
+        return resule
+
     data = json.loads(request.data)
     input_case = data['input_case']  # 获取传进来的测试用例
     output_case = data['output_case']  # 获取传进来的测试用例
@@ -55,14 +64,6 @@ def oj_run_v1():  # put application's code here
     return ''.join(res)
 
 
-def fund(list_emp, n):
-    resules = []
-    for i in range(0, len(list_emp), n):
-        temp = list_emp[i:i + n]
-        resules.append(temp)
-    return resules
-
-
 @ray.remote
 def ray_oj(data):
     def write_to_file(content, file_path):
@@ -76,9 +77,6 @@ def ray_oj(data):
     code = data['code']  # 执行代码
     input_case = data['input_case']  # 输入样例,数组
     output_case = data['output_case']  # 输出样例,数组
-    print("input_case", input_case)
-    print("output_case", output_case)
-
     time = data['time']  # 时间限制
     memory = data['memory']  # 空间限制
     language = data['language']  # 语言

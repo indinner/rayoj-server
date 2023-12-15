@@ -11,8 +11,8 @@ app = Flask(__name__)
 app.register_blueprint(compile_run_blueprint)
 
 # 从环境变量获取ray_url
-ray_url = os.environ.get("RAY_URL", "default_value_if_not_set")
-# ray_url = 'ray://10.100.157.253:10001'
+# ray_url = os.environ.get("RAY_URL", "default_value_if_not_set")
+ray_url = 'ray://10.100.157.253:10001'
 # 启动Ray.
 ray.init(ray_url)
 

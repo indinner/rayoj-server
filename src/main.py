@@ -10,111 +10,102 @@ from compile_run import compile_run_blueprint
 app = Flask(__name__)
 app.register_blueprint(compile_run_blueprint)
 
-# 从环境变量获取ray_url
-# ray_url = os.environ.get("RAY_URL", "default_value_if_not_set")
-ray_url = 'ray://10.100.157.253:10001'
-# 启动Ray.
+# 从环境变量获取Ray URL，如果没有设置，则使用默认值。
+ray_url = os.environ.get("RAY_URL", 'ray://10.100.160.253:10001')
 ray.init(ray_url)
 
 
 @app.route('/oj_run_v2', methods=['POST'])
 @cross_origin(origins="*")
 def oj_run_v2():
-    # 切割数组
-    def fund(list_emp, n):
-        resule = []
-        for i in range(0, len(list_emp), n):
-            temp = list_emp[i:i + n]
-            resule.append(temp)
-        return resule
-
     data = json.loads(request.data)
-    input_case = data['input_case']  # 获取传进来的测试用例
-    output_case = data['output_case']  # 获取传进来的测试用例
-    res_obj_id = []
+    input_case = data['input_case']
+    output_case = data['output_case']
 
-    # 判断测试用例数量，小于等于10则使用每节点每次判一个测试用例的逻辑
-    # 大于10则每节点分配多个测试用例判题
+    # 根据测试用例总数确定每个节点的用例数量。
     case_number = len(input_case)
-    if case_number <= 10:
-        fund_number = 3
-    else:
-        fund_number = 5
+    fund_number = 3 if case_number <= 10 else 5
 
-    # 切割测试用例
-    temp_input = fund(input_case, fund_number)
-    temp_output = fund(output_case, fund_number)
+    # 将测试用例分割成块。
+    temp_input = split_list(input_case, fund_number)
+    temp_output = split_list(output_case, fund_number)
 
-    for i in range(0, len(temp_input)):
-        data['input_case'] = temp_input[i]
-        data['output_case'] = temp_output[i]
-        kid = ray_oj.remote(data)
-        res_obj_id.append(kid)
+    res_obj_id = [ray_oj.remote({**data, 'input_case': inp, 'output_case': out})
+                  for inp, out in zip(temp_input, temp_output)]
+
     res = ray.get(res_obj_id)
-    return ''.join(json.dumps(res, ensure_ascii=False))
+    return json.dumps(res, ensure_ascii=False)
 
 
-# v1接口，所有测试用例放在一个沙盒进行测试
 @app.route('/oj_run_v1', methods=['POST'])
 @cross_origin(origins="*")
-def oj_run_v1():  # put application's code here
+def oj_run_v1():
     data = json.loads(request.data)
-    kid = ray_oj.remote(data)
-    res = ray.get(kid)
-    return ''.join(res)
+    result = ray.get(ray_oj.remote(data))
+    return json.dumps(result)
 
 
 @ray.remote
 def ray_oj(data):
-    def write_to_file(content, file_path):
-        try:
-            with open(file_path, 'w') as file:
-                file.write(content + '\n')
-            print("内容已成功写入文件。")
-        except IOError:
-            print("无法写入文件：{}".format(file_path))
-
-    code = data['code']  # 执行代码
-    input_case = data['input_case']  # 输入样例,数组
-    output_case = data['output_case']  # 输出样例,数组
-    time = data['time']  # 时间限制
-    memory = data['memory']  # 空间限制
-    language = data['language']  # 语言
-    result_type = data['result_type']  # 返回结果类型，json str
-    random_id = str(uuid.uuid1())
-    subprocess.call('mkdir /testcase/' + random_id, shell=True)  # 创建一个测试文件夹
-    filename = ''
-    filename_ = ''
-    if language == 'python':
-        filename = 'test.py'
-        filename_ = 'test.py'
-    elif language == 'c++':
-        filename = 'Main.cpp'
-        filename_ = 'Main'
-    elif language == 'cpp':
-        filename = 'Main.cpp'
-        filename_ = 'Main'
-    write_to_file(code, '/testcase/' + random_id + '/' + filename)
-    for i in range(0, len(input_case)):  # 创建测试用例文件
-        write_to_file(input_case[i], '/testcase/' + random_id + '/' + str(i) + '.in')
-        write_to_file(output_case[i], '/testcase/' + random_id + '/' + str(i) + '.out')
-
-        language_type = ''
+    def get_filenames_by_language(language):
+        """根据编程语言获取文件名。"""
         if language == 'python':
-            language_type = 'python3'
-        elif language == 'c++':
-            language_type = 'cpp'
-        elif language == 'cpp':
-            language_type = 'cpp'
-        cmd = "python /home/acm-judge-module/judge/judge.py --language " + language_type + " --languageConfig /home/acm-judge-module/judge/language/ --file /testcase/" + random_id + "/" + filename_ + " --time " + str(
-            time) + " --memory " + str(
-            memory) + " --testDir /testcase/" + random_id + " --mode entire --type " + result_type + " --delete false --codeResultDir " + "/testcase/" + random_id
-    res = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
-                           stdout=subprocess.PIPE, text=True)
-    # print(cmd)
-    (out, err) = res.communicate()
-    pass
-    return out
+            return 'test.py', 'test.py'
+        elif language in ['c++', 'cpp']:
+            return 'Main.cpp', 'Main'
+        raise ValueError(f"不支持的语言: {language}")
+
+    def write_to_file(content, file_path):
+        """将内容写入文件。"""
+        with open(file_path, 'w') as file:
+            file.write(content + '\n')
+
+    def build_command(language, time_limit, memory_limit, test_dir, filename, result_type):
+        """构建运行判题的命令。"""
+        language_type = 'python3' if language == 'python' else 'cpp'
+        cmd_template = (
+            "python /home/acm-judge-module/judge/judge.py "
+            "--language {language} --languageConfig /home/acm-judge-module/judge/language/ "
+            "--file {test_dir}/{filename} --time {time} --memory {memory} "
+            "--testDir {test_dir} --mode entire --type {result_type} "
+            "--delete false --codeResultDir {test_dir}"
+        )
+        return cmd_template.format(
+            language=language_type,
+            test_dir=test_dir,
+            filename=filename,
+            time=time_limit,
+            memory=memory_limit,
+            result_type=result_type
+        )
+
+    def execute_command(cmd):
+        """执行一个shell命令并返回输出。"""
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        out, err = process.communicate()
+        if process.returncode != 0:
+            raise subprocess.CalledProcessError(process.returncode, cmd, output=out, stderr=err)
+        return out
+
+    random_id = str(uuid.uuid1())
+    test_dir = f'/testcase/{random_id}'
+    os.makedirs(test_dir, exist_ok=True)
+
+    language = data['language']
+    filename, exec_filename = get_filenames_by_language(language)
+
+    write_to_file(data['code'], os.path.join(test_dir, filename))
+    for i, (input_case, output_case) in enumerate(zip(data['input_case'], data['output_case'])):
+        write_to_file(input_case, os.path.join(test_dir, f'{i}.in'))
+        write_to_file(output_case, os.path.join(test_dir, f'{i}.out'))
+
+    cmd = build_command(language, data['time'], data['memory'], test_dir, exec_filename, data['result_type'])
+    return execute_command(cmd)
+
+
+def split_list(lst, n):
+    """将列表分割成大小为n的块。"""
+    return [lst[i:i + n] for i in range(0, len(lst), n)]
 
 
 if __name__ == '__main__':

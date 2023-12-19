@@ -96,5 +96,3 @@ def oj_compile_run(code, case_input, language):
             os.remove(cpp_file_name)
             compile_status = 7
             return compile_status, compile_out, compile_err, 0, 0  # 这里假设编译失败不消耗时间和内存
-
-# 其他代码保持不变...

@@ -9,7 +9,6 @@ import time
 import resource
 from flask import Blueprint, request
 from flask_cors import cross_origin
-from src.main import is_ray_connected
 
 compile_run_blueprint = Blueprint('compile_run_blueprint', __name__)
 
@@ -17,8 +16,6 @@ compile_run_blueprint = Blueprint('compile_run_blueprint', __name__)
 @compile_run_blueprint.route('/oj_compiler_run', methods=['POST'])
 @cross_origin(origins="*")
 def oj_compiler_run():
-
-    is_ray_connected()
 
     data = json.loads(request.data)
     code = data['code']
@@ -100,3 +97,4 @@ def oj_compile_run(code, case_input, language):
             os.remove(cpp_file_name)
             compile_status = 7
             return compile_status, compile_out, compile_err, 0, 0  # 这里假设编译失败不消耗时间和内存
+

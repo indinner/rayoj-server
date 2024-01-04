@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import time
 import uuid
 import ray
 from flask import Flask, request
@@ -11,13 +12,15 @@ app = Flask(__name__)
 app.register_blueprint(compile_run_blueprint)
 
 # 从环境变量获取Ray URL，如果没有设置，则使用默认值。
-ray_url = os.environ.get("RAY_URL", 'ray://10.100.160.253:10001')
-ray.init(ray_url)
+ray_url = os.environ.get("RAY_URL", 'ray://119.45.173.116:10001')
 
 
 @app.route('/oj_run_v2', methods=['POST'])
 @cross_origin(origins="*")
 def oj_run_v2():
+
+    is_ray_connected()
+
     data = json.loads(request.data)
     input_case = data['input_case']
     output_case = data['output_case']
@@ -106,6 +109,11 @@ def ray_oj(data):
 def split_list(lst, n):
     """将列表分割成大小为n的块。"""
     return [lst[i:i + n] for i in range(0, len(lst), n)]
+
+
+def is_ray_connected():
+    if not ray.is_initialized():
+        ray.init(ray_url)
 
 
 if __name__ == '__main__':

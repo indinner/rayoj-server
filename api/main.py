@@ -18,10 +18,10 @@ def check_ray_status():
         ray_url = os.environ.get("RAY_URL", 'ray://119.45.173.116:10001')
         try:
             if ray.is_initialized():  # 检查Ray是否已经初始化
-                print("已经初始化")
+                print("Ray已经初始化")
                 break
             else:
-                print("未初始化，正在连接")
+                print("Ray未初始化，正在连接")
                 ray.init(ray_url)  # 尝试初始化Ray
                 time.sleep(5)  # 等待5秒
         except Exception as e:
@@ -29,6 +29,7 @@ def check_ray_status():
             time.sleep(5)
 
 
+# 检测当前Ray的连接状态 若未连接则尝试进行连接
 check_ray_status()
 
 

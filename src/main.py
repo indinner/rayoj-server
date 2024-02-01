@@ -114,6 +114,9 @@ def ray_oj(data):
 
     write_to_file(data['code'], os.path.join(test_dir, filename))
     for i, (input_case, output_case) in enumerate(zip(data['input_case'], data['output_case'])):
+        output_case=output_case.rstrip()
+        print(input_case)
+        print(output_case)
         write_to_file(input_case, os.path.join(test_dir, f'{i}.in'))
         write_to_file(output_case, os.path.join(test_dir, f'{i}.out'))
 

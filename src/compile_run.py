@@ -53,26 +53,36 @@ def oj_compile_run(code, case_input, language):
     def run_executable(executable_file, input_text):
         start_time = time.time()
         start_memory = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
-        run_process = subprocess.run(executable_file, input=input_text.encode(), stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE, timeout=5)
-        end_time = time.time()
-        end_memory = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
-        total_time = end_time - start_time
-        memory_usage = end_memory - start_memory
-        return run_process.returncode, run_process.stdout.decode(), run_process.stderr.decode(), total_time, memory_usage
+        try:
+            run_process = subprocess.run(executable_file, input=input_text.encode(), stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE, timeout=5)
+            end_time = time.time()
+            end_memory = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+            total_time = end_time - start_time
+            memory_usage = end_memory - start_memory
+            return run_process.returncode, run_process.stdout.decode(), run_process.stderr.decode(), total_time, memory_usage
+        except subprocess.TimeoutExpired:
+            total_time = time.time() - start_time
+            memory_usage = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss - start_memory
+            return 2, "", "Execution timed out", total_time, memory_usage
 
     # 执行Python代码
     def execute_python(source_code_file, input_text):
         start_time = time.time()
         start_memory = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
-        run_command = f"python {source_code_file}"
-        run_process = subprocess.run(shlex.split(run_command), input=input_text.encode(), stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE, timeout=5)
-        end_time = time.time()
-        end_memory = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
-        total_time = end_time - start_time
-        memory_usage = end_memory - start_memory
-        return run_process.returncode, run_process.stdout.decode(), run_process.stderr.decode(), total_time, memory_usage
+        try:
+            run_command = f"python {source_code_file}"
+            run_process = subprocess.run(shlex.split(run_command), input=input_text.encode(), stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE, timeout=5)
+            end_time = time.time()
+            end_memory = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+            total_time = end_time - start_time
+            memory_usage = end_memory - start_memory
+            return run_process.returncode, run_process.stdout.decode(), run_process.stderr.decode(), total_time, memory_usage
+        except subprocess.TimeoutExpired:
+            total_time = time.time() - start_time
+            memory_usage = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss - start_memory
+            return 2, "", "Execution timed out", total_time, memory_usage
 
     # 运行
     if language == 'python':
@@ -97,4 +107,3 @@ def oj_compile_run(code, case_input, language):
             os.remove(cpp_file_name)
             compile_status = 7
             return compile_status, compile_out, compile_err, 0, 0  # 这里假设编译失败不消耗时间和内存
-
